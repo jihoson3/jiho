@@ -18,7 +18,7 @@ image = None
 def enter():
     global over_state_time, image
     #over_state_time = 0.0
-    image=load_image('game_over.png')
+    image=load_image('gameover.png')
 
 
 
@@ -36,8 +36,7 @@ def update():
 
 def draw():
     global over_state_time, image
-    #clear_canvas()
-    main_state2.draw()
+    clear_canvas()
     image.draw(400,300)
     update_canvas()
 
@@ -52,7 +51,9 @@ def handle_events():
             if (event.type, event.key) == (SDL_KEYDOWN , SDLK_ESCAPE):
                 game_framework.quit()
             elif (event.type, event.key) == (SDL_KEYDOWN, SDLK_SPACE):
-                game_framework.change_state(title_state)
+                close_canvas()
+                open_canvas()
+                game_framework.run(main_state2)
 
 
 

@@ -2,7 +2,8 @@ import game_framework
 import title_state
 import collision
 import gameover_state
-import main_state3
+
+import jwerly_state
 from pico2d import *
 
 import main_state
@@ -14,7 +15,7 @@ doors=[]
 ledders=[]
 bows=[]
 stones=[]
-mls=[]
+rocks=[]
 current_time_jones=0.0
 current_time_stone=0.0
 name = "MainState"
@@ -23,6 +24,9 @@ class Field:
     def __init__(self):
         self.image = load_image('back.png')
         self.field_draw_x=4400
+        self.bgm=load_music('bgm.mp3')
+        self.bgm.set_volume(64)
+        self.bgm.repeat_play()
 
     def draw(self):
         self.image.draw(self.field_draw_x, 300)
@@ -35,6 +39,9 @@ class Jones:
     RUN_SPEED_MPS=(RUN_SPEED_MPM/60.0)
     RUN_SPEED_PPS=(RUN_SPEED_MPS *PIXEL_PER_METER)
     image = None
+    jump_sound=None
+    dead_sound=None
+    door_open_sound=None
     LEFT_RUN, RIGHT_RUN, LEFT_STAND, RIGHT_STAND, RIGHT_USE_ROPE, LEFT_USE_ROPE,UPDOWN_RUN,UPDOWN_STAND = 0, 1, 2, 3,4,5,6,7
 
 
@@ -53,6 +60,15 @@ class Jones:
         self.onledder=False
         if Jones.image == None:
             Jones.image=load_image("jones_.png")
+        if Jones.jump_sound==None:
+            Jones.jump_sound=load_wav('jump.wav')
+            Jones.jump_sound.set_volume(32)
+        if Jones.dead_sound==None:
+            Jones.dead_sound=load_wav('dead.wav')
+            Jones.dead_sound.set_volume(32)
+        if Jones.door_open_sound==None:
+            Jones.door_open_sound=load_wav('door.wav')
+            Jones.door_open_sound.set_volume(32)
     def handle_event(self, event):
         if (event.type, event.key) == (SDL_KEYDOWN, SDLK_LEFT):
             if self.state in (self.RIGHT_STAND, self.LEFT_STAND, self.RIGHT_RUN, self.UPDOWN_RUN, self.UPDOWN_STAND):
@@ -69,6 +85,7 @@ class Jones:
         elif (event.type, event.key)==(SDL_KEYDOWN, SDLK_SPACE): #로프기능
             self.fst_y=self.y
             self.jump=True
+            self.jump_sound.play()
         for ledder in ledders:
            if (event.type, event.key)==(SDL_KEYDOWN, SDLK_UP) and collision.collide(jones,ledder):
                 self.state=self.UPDOWN_RUN
@@ -78,11 +95,12 @@ class Jones:
                self.state=self.RIGHT_STAND
         if (event.type, event.key)==(SDL_KEYDOWN, SDLK_UP):
                if self.ondoor:
-                   game_framework.change_state(main_state3)
+                   self.door_open_sound.play()
+                   game_framework.change_state(jwerly_state)
 
 
     def get_bb(self):
-        return self.x-15,self.y-31,self.x+15,self.y+31
+        return self.x-15,self.y-28,self.x+15,self.y+24
     def draw_bb(self):
         draw_rectangle(*self.get_bb())
 
@@ -93,8 +111,10 @@ class Jones:
         #gravity_distance=Jones.GRAVITY_PPS*frame_time
         self.total_frames+=1.0
         self.frame=(self.frame+1)%7
+        if self.dead:
+            self.dead_sound.play()
 
-        if self.state==self.RIGHT_RUN:
+        if self.state==self.RIGHT_RUN and field.field_draw_x>-280:
             for i in lands:
                 i.x-=distance
             for spear in spears:
@@ -107,8 +127,9 @@ class Jones:
                 bow.x-=distance
             for stone in stones:
                 stone.x-=distance
-            for ml in mls:
-                ml.x-=distance
+            for rock in rocks:
+                rock.x-=distance
+
             field.field_draw_x-=distance
         elif self.state==self.RIGHT_USE_ROPE:
             self.y+=5
@@ -127,7 +148,7 @@ class Jones:
                field.field_draw_x-=distance
             else:
                 self.state=self.RIGHT_STAND
-        elif self.state == self.LEFT_RUN:
+        elif self.state == self.LEFT_RUN and field.field_draw_x<4400:
             for i in lands:
                 i.x+=distance
             for spear in spears:
@@ -140,8 +161,9 @@ class Jones:
                 bow.x+=distance
             for stone in stones:
                 stone.x+=distance
-            for ml in mls:
-                ml.x+=distance
+            for rock in rocks:
+                rock.x+=distance
+
             field.field_draw_x += distance
         elif self.state==self.LEFT_USE_ROPE:
             self.y+=5
@@ -193,7 +215,7 @@ class Land:
         draw_rectangle(*self.get_bb())
 
 def make_land():
-    global land1,land2,land3,land4,land5,land6,land7,land8,land9, land10, land11, land12,land13
+    global land1,land2,land3,land4,land5,land6,land7,land8,land9, land10, land11, land12,land13, land14
     land1 = Land(400, 90) #바닥
     land2 = Land(900, 90)
     land3 = Land(1400,50)
@@ -207,50 +229,8 @@ def make_land():
     land12=Land(5800,70)
     land13=Land(4100,350)
     land10=Land(1650,350)
-class Move_land:
-    image = None
-
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.fst_x=x
-        self.dir=0
-        self.frame=0
-        mls.append(self)
-        if Move_land.image == None:
-            Move_land.image = load_image('land4.png')
 
 
-    def draw(self):
-        self.image.clip_draw(0,0,100,60,self.x, self.y)
-    def update(self):
-        if self.dir==0:
-            self.x+=1
-            self.frame+=1
-            if self.frame>200:
-                self.dir=1
-                self.frame=0
-        elif self.dir==1:
-            self.x-=1
-            self.frame+=1
-            if self.frame>200:
-                self.dir=0
-                self.frame=0
-
-
-
-
-    def get_bb(self):
-        return self.x - 50, self.y + 20, self.x + 50, self.y + 30
-
-    def draw_bb(self):
-        draw_rectangle(*self.get_bb())
-
-
-def make_ml():
-    global ml1,ml2, ml3
-    ml1=Move_land(4300,200)
-    ml2=Move_land(400,200)
 
 
 
@@ -321,7 +301,7 @@ class Ledder:
 
 
 def make_Ledder():
-    global ledder1,ledder2,ledder3,ledder4,ledder5,ledder6,ledder7,ledder8,ledder9,ledder10,ledder11,ledder12,ledder13
+    global ledder1,ledder2,ledder3,ledder4,ledder5,ledder6,ledder7,ledder8,ledder9,ledder10,ledder11,ledder12,ledder13, ledder14
     ledder1=Ledder(1500,100)
     ledder2=Ledder(1500,150)
     ledder3=Ledder(1500,200)
@@ -335,9 +315,12 @@ def make_Ledder():
     ledder11=Ledder(4000,200)
     ledder12=Ledder(4000,250)
     ledder13=Ledder(4000,300)
+    ledder14=Ledder(4500,250)
 
 class Bow:
     image = None
+    sound_fire=None
+    sound_wind=None
     bow_trigger=False
 
     def __init__(self, x, y):
@@ -346,6 +329,12 @@ class Bow:
         bows.append(self)
         if Bow.image == None:
             Bow.image = load_image('bow.png')
+        if Bow.sound_fire==None:
+            Bow.sound_fire=load_wav('fire.wav')
+            Bow.sound_fire.set_volume(48)
+        if Bow.sound_wind==None:
+            Bow.sound_wind=load_wav('wind.wav')
+            Bow.sound_wind.set_volume(32)
 
     def draw(self):
         self.image.draw(self.x, self.y)
@@ -374,6 +363,7 @@ class Stone:
     RUN_SPEED_MPS = (RUN_SPEED_MPM / 60.0)
     RUN_SPEED_PPS = (RUN_SPEED_MPS * PIXEL_PER_METER)
     image = None
+    sound=None
 
     def __init__(self, x, y):
         self.x = x
@@ -384,21 +374,62 @@ class Stone:
         stones.append(self)
         if Stone.image == None:
             Stone.image = load_image('stone_.png')
+        if Stone.sound==None:
+            Stone.sound=load_wav('stone.wav')
+            Stone.sound.set_volume(32)
     def update(self,frame_time):
         distance = Stone.RUN_SPEED_PPS * frame_time
         self.total_frames += 1.0
         self.rotateangle-=0.01
+        if(self.y<0):
+            self.sound.set_volume(1)
         if(self.Stone_trigger):
+            self.sound.play()
             for land in lands:
                 if collision.collide(self,land) and self.x<4300:
                     self.x+=distance
                     return
             self.y-=2
+    def draw(self):
+        #self.image.draw(self.x, self.y)
+        self.image.rotate_draw(self.rotateangle,self.x,self.y)
+
+    def get_bb(self):
+        return self.x - 80, self.y - 90, self.x + 80, self.y + 90
+
+    def draw_bb(self):
+        draw_rectangle(*self.get_bb())
+def make_stone():
+    global stone1
+    stone1=Stone(2400,700)
+class Rock:
+    PIXEL_PER_METER = (10.0 / 0.3)
+    RUN_SPEED_KMPH = 20.0
+    RUN_SPEED_MPM = (RUN_SPEED_KMPH * 1000.0 / 60.0)
+    RUN_SPEED_MPS = (RUN_SPEED_MPM / 60.0)
+    RUN_SPEED_PPS = (RUN_SPEED_MPS * PIXEL_PER_METER)
+    image=None
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.total_frames=0
+        self.Rock_trigger=False
+        rocks.append(self)
+        if Rock.image == None:
+            Rock.image = load_image('stone_.png')
+    def update(self):
+
+        self.total_frames += 1.0
+
+        if(self.Rock_trigger):
+            self.y-=1
+
 
 
     def draw(self):
         #self.image.draw(self.x, self.y)
-        self.image.rotate_draw(self.rotateangle, self.x, self.y)
+        self.image.draw(self.x, self.y)
 
     def get_bb(self):
         return self.x - 80, self.y - 90, self.x + 80, self.y + 90
@@ -407,9 +438,10 @@ class Stone:
         draw_rectangle(*self.get_bb())
 
 
-def make_stone():
-    global stone1
-    stone1=Stone(2400,700)
+def make_rock():
+    global rock1,rock2
+    pass
+
 
 
 def get_frame_time_jones():
@@ -423,6 +455,7 @@ def get_frame_time_stone():
     current_time_stone += frame_time
     return frame_time
 
+
 def enter():
     global jones,field,lands,spears,doors,mls,stones
     field=Field()
@@ -431,7 +464,8 @@ def enter():
     make_spear()
     make_door()
     make_Ledder()
-    make_ml()
+    make_rock()
+
     make_stone()
     make_bow()
     print(type(lands))
@@ -440,22 +474,22 @@ def enter():
 
 
 def exit():
-    global jones,field,lands,spears,doors
-    del(jones)
-    del(field)
-    del(lands)
-    del(spears)
-    del(doors)
-    close_canvas()
+    global jones,field,lands,spears,doors,stones,bows
+    clear_canvas()
+
+
 
 
 def update():
-    print(stone1.Stone_trigger)
     print(field.field_draw_x)
+
     jones.update(get_frame_time_jones())
     stone1.update(get_frame_time_stone())
+    for rock in rocks:
+        rock.update()
     if jones.y<-10 or jones.dead: #게임오버 조건
-        game_framework.push_state(gameover_state)
+        jones.dead_sound.play()
+        game_framework.change_state(gameover_state)
 
     if(collision.collide(jones,door1)):
         jones.ondoor=True
@@ -465,6 +499,9 @@ def update():
     #    if(collision.collide(jones,ledder)):
     #        jones.onledder=True
 
+    for rock in rocks:
+        if(collision.collide(jones, rock)):
+            print("collision")
     for spear in spears:
         if(collision.collide(jones, spear)):
            print("collision")
@@ -474,30 +511,26 @@ def update():
     for bow in bows:
         if(collision.collide(jones,bow)):
             print("collision")
-            #jones.deae=True
+            jones.dead=True
     if field.field_draw_x<3000:
         for bow in bows:
             bow.bow_trigger=True
+            #bow.sound_fire.play()
+
     if field.field_draw_x<2300:
         for stone in stones:
             stone1.Stone_trigger=True
+    if field.field_draw_x<3400:
+        for rock in rocks:
+            rock.Rock_trigger=True
     for bow in bows:
         if bow.bow_trigger:
+            bow.sound_fire.play()
             bow.x-=1
+            bow.sound_wind.play()
     for land in lands :
         if(collision.collide(jones,land)):
            return
-    for ml in mls:
-        if (collision.collide(jones, ml)):
-            if ml.dir==0:
-                jones.x+=1
-
-                field.field_draw_x -= 1
-            elif ml.dir==1:
-                jones.x-=1
-
-                field.field_draw_x += 1
-            return
     if jones.state==Jones.UPDOWN_RUN:
         return
     if jones.state==Jones.UPDOWN_STAND:
@@ -511,25 +544,22 @@ def draw():
     global jones,lands,doors,ledders,bows,stones
     clear_canvas()
     field.draw()
-    jones.draw_bb()
     for land in lands:
         land.draw()
-        land.draw_bb()
     for spear in spears:
         spear.draw()
-        spear.draw_bb()
     for door in doors:
         door.draw()
     for ledder in ledders:
         ledder.draw()
     for bow in bows:
         bow.draw()
-        bow.draw_bb()
-    for stone in stones:
-        stone.draw()
+    #for stone in stones:
+     #   stone.draw()
     for ladder in ledders:
         ladder.draw()
-        ladder.draw_bb()
+    for rock in rocks:
+        rock.draw()
     #for ml in mls:
      #   ml.draw()
       #  ml.draw_bb()
@@ -538,7 +568,6 @@ def draw():
     jones.draw()
     for stone in stones:
         stone.draw()
-        stone.draw_bb()
 
     update_canvas()
 
